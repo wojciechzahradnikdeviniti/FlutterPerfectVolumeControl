@@ -84,28 +84,26 @@ public class SwiftPerfectVolumeControlPlugin: NSObject, FlutterPlugin {
 
     /// 绑定监听器
     public func bindListener() {
+        let audioSession = AVAudioSession.sharedInstance()
         do {
-            try AVAudioSession.sharedInstance().setActive(true)
-            AVAudioSession.sharedInstance().addObserver(self, forKeyPath: "outputVolume", options: [.new, .old], context: nil)
+            try audioSession.setActive(true)
         } catch let error as NSError {
             print("\(error)")
         }
 
-        // 绑定音量监听器
-        NotificationCenter.default.addObserver(self, selector: #selector(self.volumeChangeListener), name: NSNotification.Name(rawValue: "AVSystemController_SystemVolumeDidChangeNotification"), object: nil)
+        if #available(iOS 15, *) {
+            NotificationCenter.default.addObserver(self, selector: #selector(volumeChangeListener), name: NSNotification.Name(rawValue: "SystemVolumeDidChange"), object: nil)
+        }
+        else {
+            NotificationCenter.default.addObserver(self, selector: #selector(volumeChangeListener), name: NSNotification.Name(rawValue: "AVSystemController_SystemVolumeDidChangeNotification"), object: nil)
+        }
         UIApplication.shared.beginReceivingRemoteControlEvents();
         
     }
 
     /// 音量监听
     @objc func volumeChangeListener(notification: NSNotification) {
-        let volume = notification.userInfo!["AVSystemController_AudioVolumeNotificationParameter"] as! Float
-        channel?.invokeMethod("volumeChangeListener", arguments: volume)
-    }
-    
-    /// 音量监听(KVO方式)
-    public override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        let volume = AVAudioSession.sharedInstance().outputVolume
+         let volume = AVAudioSession.sharedInstance().outputVolume
         channel?.invokeMethod("volumeChangeListener", arguments: volume)
     }
 }
